@@ -1,0 +1,27 @@
+---
+# AI Factory demo: delete a tenant (like the "Tenant Deletion" workflow in AWX)
+- name: Delete AI Factory tenant
+  hosts: all
+  become: true
+  vars:
+    tenant_name: "demo-tenant"
+
+  tasks:
+    - name: Delete the tenant namespace on Kubernetes
+      ansible.builtin.command: /usr/local/bin/kubectl delete namespace {{ tenant_name }} --ignore-not-found
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: ns
+      changed_when: "'deleted' in ns.stdout"
+
+    - name: Delete the storage bucket and the tenant record
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/opt/aif/buckets/{{ tenant_name }}"
+        - "/opt/aif/tenants/{{ tenant_name }}.txt"
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "Tenant '{{ tenant_name }}' deleted"

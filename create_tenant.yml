@@ -1,0 +1,47 @@
+---
+# AI Factory demo: create a tenant (like the "Tenant Creation" workflow in AWX)
+#   tenant record  -> like NetBox
+#   storage folder -> like a MinIO bucket
+#   namespace      -> like the tenant namespace on Harvester
+- name: Create AI Factory tenant
+  hosts: all
+  become: true
+  vars:
+    tenant_name: "demo-tenant"
+    use_case: "Kubernetes"
+
+  tasks:
+    - name: Check the tenant name
+      ansible.builtin.assert:
+        that: tenant_name is match('^[a-z][a-z0-9-]{2,19}$')
+        fail_msg: "Use 3-20 lowercase letters, digits or '-'"
+
+    - name: Create the folders
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /opt/aif/tenants
+        - "/opt/aif/buckets/{{ tenant_name }}"
+
+    - name: Save the tenant record (like NetBox)
+      ansible.builtin.copy:
+        dest: "/opt/aif/tenants/{{ tenant_name }}.txt"
+        mode: "0644"
+        content: |
+          tenant: {{ tenant_name }}
+          use_case: {{ use_case }}
+          created_by: AWX job {{ awx_job_id | default('manual') }}
+
+    - name: Create the tenant namespace on Kubernetes (like Harvester)
+      ansible.builtin.command: /usr/local/bin/kubectl create namespace {{ tenant_name }}
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: ns
+      changed_when: ns.rc == 0
+      failed_when: ns.rc != 0 and 'AlreadyExists' not in ns.stderr
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "Tenant '{{ tenant_name }}' ({{ use_case }}) created: record, storage bucket and namespace"
