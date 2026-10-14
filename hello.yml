@@ -1,0 +1,19 @@
+---
+- name: My first AWX playbook
+  hosts: all
+  gather_facts: true
+  vars:
+    user_name: "Shubham"
+
+  tasks:
+    - name: Say hello
+      ansible.builtin.debug:
+        msg: "Hello {{ user_name }}! This playbook was run by AWX."
+
+    - name: Show where it ran
+      ansible.builtin.debug:
+        msg: "Ran on {{ ansible_hostname }} ({{ ansible_distribution }} {{ ansible_distribution_version }})"
+
+    - name: Show date and time
+      ansible.builtin.debug:
+        msg: "Run time: {{ ansible_date_time.date }} {{ ansible_date_time.time }}"
